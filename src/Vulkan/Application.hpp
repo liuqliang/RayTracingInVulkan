@@ -45,6 +45,8 @@ namespace Vulkan
 		const std::vector<Assets::UniformBuffer>& UniformBuffers() const { return uniformBuffers_; }
 		const class GraphicsPipeline& GraphicsPipeline() const { return *graphicsPipeline_; }
 		const class FrameBuffer& SwapChainFrameBuffer(const size_t i) const { return swapChainFramebuffers_[i]; }
+		bool IsSimulatorRun() const;
+		void WaitForLastSubmittedFrame(uint64_t timeout) const;
 		
 		virtual const Assets::Scene& GetScene() const = 0;
 		virtual const uint32_t GetShaderType() const = 0;

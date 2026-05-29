@@ -11,6 +11,7 @@ namespace Assets
 	public:
 
 		static Texture LoadTexture(const std::string& filename, const Vulkan::SamplerConfig& samplerConfig);
+		static Texture SolidColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a = 255);
 
 		Texture& operator = (const Texture&) = delete;
 		Texture& operator = (Texture&&) = delete;

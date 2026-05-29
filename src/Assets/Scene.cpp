@@ -127,15 +127,26 @@ Scene::Scene(Vulkan::CommandPool& commandPool, std::vector<Model>&& models, std:
 
 	
 	// Upload all textures
-	textureImages_.reserve(textures_.size());
-	textureImageViewHandles_.resize(textures_.size());
-	textureSamplerHandles_.resize(textures_.size());
+	const size_t textureCount = std::max<size_t>(1, textures_.size());
+	textureImages_.reserve(textureCount);
+	textureImageViewHandles_.resize(textureCount);
+	textureSamplerHandles_.resize(textureCount);
 
-	for (size_t i = 0; i != textures_.size(); ++i)
+	if (textures_.empty())
 	{
-	   textureImages_.emplace_back(new TextureImage(commandPool, textures_[i]));
-	   textureImageViewHandles_[i] = textureImages_[i]->ImageView().Handle();
-	   textureSamplerHandles_[i] = textureImages_[i]->Sampler().Handle();
+		const auto fallbackTexture = Texture::SolidColor(255, 255, 255, 255);
+		textureImages_.emplace_back(new TextureImage(commandPool, fallbackTexture));
+		textureImageViewHandles_[0] = textureImages_[0]->ImageView().Handle();
+		textureSamplerHandles_[0] = textureImages_[0]->Sampler().Handle();
+	}
+	else
+	{
+		for (size_t i = 0; i != textures_.size(); ++i)
+		{
+		   textureImages_.emplace_back(new TextureImage(commandPool, textures_[i]));
+		   textureImageViewHandles_[i] = textureImages_[i]->ImageView().Handle();
+		   textureSamplerHandles_[i] = textureImages_[i]->Sampler().Handle();
+		}
 	}
 }
 

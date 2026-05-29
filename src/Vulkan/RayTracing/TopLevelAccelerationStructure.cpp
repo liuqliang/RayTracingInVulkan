@@ -5,6 +5,7 @@
 #include "Vulkan/Buffer.hpp"
 #include "Vulkan/Device.hpp"
 #include <cstring>
+#include <cstdio>
 
 namespace Vulkan::RayTracing {
 

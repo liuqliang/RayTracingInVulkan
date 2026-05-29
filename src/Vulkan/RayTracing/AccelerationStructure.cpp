@@ -4,6 +4,7 @@
 #include "Utilities/Exception.hpp"
 #include "Vulkan/Buffer.hpp"
 #include "Vulkan/Device.hpp"
+#include <cstdio>
 #undef MemoryBarrier
 
 namespace Vulkan::RayTracing {

@@ -4,6 +4,7 @@
 #include "Device.hpp"
 #include "Utilities/Exception.hpp"
 #include <array>
+#include <cstdio>
 #include <utility>
 
 namespace Vulkan {

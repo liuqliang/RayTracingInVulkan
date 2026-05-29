@@ -21,7 +21,7 @@ foreach(shader ${shader_files})
             OUTPUT ${output_file}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${output_dir}
             COMMAND ${Vulkan_GLSLANG_VALIDATOR} --target-env vulkan1.2 -V ${full_path} -o ${output_file}
-            DEPENDS ${full_path}
+            DEPENDS ${full_path} ${shader_extra_files}
         )
 endforeach()
 

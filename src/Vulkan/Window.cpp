@@ -176,6 +176,7 @@ double Window::GetTime() const
 
 void Window::Close()
 {
+	closeRequested_ = true;
 	#ifndef OFFSCREEN_RENDERING
 	glfwSetWindowShouldClose(window_, 1);
 	#endif
@@ -194,9 +195,10 @@ bool Window::IsMinimized() const
 void Window::Run()
 {
 	glfwSetTime(0.0);
+	closeRequested_ = false;
 
 	#ifdef OFFSCREEN_RENDERING
-	while (true)
+	while (!closeRequested_)
 	#else
 	while (!glfwWindowShouldClose(window_))
 	#endif

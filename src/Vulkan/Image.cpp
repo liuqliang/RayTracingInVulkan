@@ -4,6 +4,7 @@
 #include "Device.hpp"
 #include "SingleTimeCommands.hpp"
 #include "Utilities/Exception.hpp"
+#include <cstdio>
 
 namespace Vulkan {
 

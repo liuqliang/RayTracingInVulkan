@@ -1,6 +1,7 @@
 #include "UniformBuffer.hpp"
 #include "Vulkan/Buffer.hpp"
 #include <cstring>
+#include <cstdio>
 
 namespace Assets {
 

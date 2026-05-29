@@ -1,4 +1,5 @@
 #include "CornellBox.hpp"
+#include <cstdio>
 using namespace glm;
 
 namespace Assets {

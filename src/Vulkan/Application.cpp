@@ -20,6 +20,7 @@
 #include "Assets/UniformBuffer.hpp"
 #include "Utilities/Exception.hpp"
 #include <array>
+#include <cstdlib>
 
 namespace Vulkan {
 
@@ -100,7 +101,32 @@ void Application::Run()
 	window_->OnMouseButton = [this](const int button, const int action, const int mods) { OnMouseButton(button, action, mods); };
 	window_->OnScroll = [this](const double xoffset, const double yoffset) { OnScroll(xoffset, yoffset); };
 	window_->Run();
+
+#ifdef OFFSCREEN_RENDERING
+	if (IsSimulatorRun())
+	{
+		return;
+	}
+#endif
+
 	device_->WaitIdle();
+}
+
+bool Application::IsSimulatorRun() const
+{
+	const char* usePtxFile = std::getenv("PTX_SIM_USE_PTX_FILE");
+	return usePtxFile != nullptr && usePtxFile[0] != '\0';
+}
+
+void Application::WaitForLastSubmittedFrame(const uint64_t timeout) const
+{
+	if (inFlightFences_.empty())
+	{
+		return;
+	}
+
+	const size_t submittedFrame = (currentFrame_ + inFlightFences_.size() - 1) % inFlightFences_.size();
+	inFlightFences_[submittedFrame].Wait(timeout);
 }
 
 void Application::SetPhysicalDevice(
@@ -136,14 +162,16 @@ void Application::CreateSwapChain()
 		uniformBuffers_.emplace_back(*device_);
 	}
 
+#ifndef OFFSCREEN_RENDERING
 	graphicsPipeline_.reset(new class GraphicsPipeline(*swapChain_, *depthBuffer_, uniformBuffers_, GetScene(), isWireFrame_));
 
 	for (const auto& imageView : swapChain_->ImageViews())
 	{
 		swapChainFramebuffers_.emplace_back(*imageView, graphicsPipeline_->RenderPass());
 	}
+#endif
 
-	commandBuffers_.reset(new CommandBuffers(*commandPool_, static_cast<uint32_t>(swapChainFramebuffers_.size())));
+	commandBuffers_.reset(new CommandBuffers(*commandPool_, static_cast<uint32_t>(swapChain_->ImageViews().size())));
 }
 
 void Application::DeleteSwapChain()
@@ -177,7 +205,14 @@ void Application::DrawFrame()
 	auto result = vkAcquireNextImageKHR(device_->Handle(), swapChain_->Handle(), noTimeout, imageAvailableSemaphore, nullptr, &imageIndex);
 	#endif
 
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || isWireFrame_ != graphicsPipeline_->IsWireFrame())
+	const bool wireFrameModeChanged =
+#ifndef OFFSCREEN_RENDERING
+		isWireFrame_ != graphicsPipeline_->IsWireFrame();
+#else
+		false;
+#endif
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || wireFrameModeChanged)
 	{
 		RecreateSwapChain();
 		return;

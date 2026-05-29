@@ -7,6 +7,7 @@
 #include "Vulkan/Device.hpp"
 #include "Vulkan/DeviceMemory.hpp"
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 
 namespace Vulkan::RayTracing {

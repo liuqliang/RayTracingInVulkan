@@ -3,7 +3,17 @@ set -e
 
 mkdir -p build
 cd build
-git clone https://github.com/Microsoft/vcpkg.git vcpkg.linux
+
+if [ -d vcpkg.linux/.git ]; then
+    echo "Using existing vcpkg checkout: $(pwd)/vcpkg.linux"
+elif [ -e vcpkg.linux ]; then
+    echo "ERROR: $(pwd)/vcpkg.linux already exists but is not a git checkout." >&2
+    echo "Please remove or rename it before rerunning this script." >&2
+    exit 1
+else
+    git clone https://github.com/Microsoft/vcpkg.git vcpkg.linux
+fi
+
 cd vcpkg.linux
 git checkout 2022.05.10
 ./bootstrap-vcpkg.sh

@@ -13,8 +13,14 @@
 #include "Vulkan/PipelineLayout.hpp"
 #include "Vulkan/ShaderModule.hpp"
 #include "Vulkan/SwapChain.hpp"
+#include <cstdio>
 
 namespace Vulkan::RayTracing {
+
+namespace
+{
+	constexpr uint32_t MaxTextureSamplers = 32;
+}
 
 RayTracingPipeline::RayTracingPipeline(
 	const DeviceProcedures& deviceProcedures,
@@ -48,7 +54,7 @@ RayTracingPipeline::RayTracingPipeline(
 		{7, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
 
 		// Textures and image samplers
-		{8, static_cast<uint32_t>(scene.TextureSamplers().size()), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
+		{8, MaxTextureSamplers, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
 
 		// The Procedural buffer.
 		{9, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR},
@@ -113,14 +119,26 @@ RayTracingPipeline::RayTracingPipeline(
 		offsetsBufferInfo.range = VK_WHOLE_SIZE;
 
 		// Image and texture samplers.
-		std::vector<VkDescriptorImageInfo> imageInfos(scene.TextureSamplers().size());
+		std::vector<VkDescriptorImageInfo> imageInfos(MaxTextureSamplers);
+		const auto textureViews = scene.TextureImageViews();
+		const auto textureSamplers = scene.TextureSamplers();
+		const VkImageView fallbackView = textureViews.front();
+		const VkSampler fallbackSampler = textureSamplers.front();
 
 		for (size_t t = 0; t != imageInfos.size(); ++t)
 		{
 			auto& imageInfo = imageInfos[t];
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = scene.TextureImageViews()[t];
-			imageInfo.sampler = scene.TextureSamplers()[t];
+			if (t < textureViews.size())
+			{
+				imageInfo.imageView = textureViews[t];
+				imageInfo.sampler = textureSamplers[t];
+			}
+			else
+			{
+				imageInfo.imageView = fallbackView;
+				imageInfo.sampler = fallbackSampler;
+			}
 		}
 
 		std::vector<VkWriteDescriptorSet> descriptorWrites =

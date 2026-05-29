@@ -6,7 +6,9 @@
 #include "TopLevelAccelerationStructure.hpp"
 #include "Assets/Model.hpp"
 #include "Assets/Scene.hpp"
+#include "Utilities/Exception.hpp"
 #include "Utilities/Glm.hpp"
+#include "Utilities/PngWriter.hpp"
 #include "Vulkan/Buffer.hpp"
 #include "Vulkan/BufferUtil.hpp"
 #include "Vulkan/Image.hpp"
@@ -15,15 +17,21 @@
 #include "Vulkan/PipelineLayout.hpp"
 #include "Vulkan/SingleTimeCommands.hpp"
 #include "Vulkan/SwapChain.hpp"
+#include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdio>
 #include <iostream>
 #include <numeric>
+#include <vector>
 
 
 namespace Vulkan::RayTracing {
 
 namespace
 {
+	constexpr uint32_t MaxTextureSamplers = 32;
+
 	template <class TAccelerationStructure>
 	VkAccelerationStructureBuildSizesInfoKHR GetTotalRequirements(const std::vector<TAccelerationStructure>& accelerationStructures)
 	{
@@ -40,6 +48,17 @@ namespace
 
 		printf("... = 0x%lx\n", total.accelerationStructureSize);
 		return total;
+	}
+
+	std::uint8_t FloatToByte(float value)
+	{
+		if (!std::isfinite(value))
+		{
+			value = 0.0f;
+		}
+
+		value = std::clamp(value, 0.0f, 1.0f);
+		return static_cast<std::uint8_t>(value * 255.0f + 0.5f);
 	}
 }
 
@@ -78,15 +97,9 @@ void Application::SetPhysicalDevice(
 	bufferDeviceAddressFeatures.pNext = nextDeviceFeatures;
 	bufferDeviceAddressFeatures.bufferDeviceAddress = true;
 
-	VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures = {};
-	indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-	indexingFeatures.pNext = &bufferDeviceAddressFeatures;
-	indexingFeatures.runtimeDescriptorArray = true;
-	indexingFeatures.shaderSampledImageArrayNonUniformIndexing = true;
-
 	VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures = {};
 	accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-	accelerationStructureFeatures.pNext = &indexingFeatures;
+	accelerationStructureFeatures.pNext = &bufferDeviceAddressFeatures;
 	accelerationStructureFeatures.accelerationStructure = true;
 	
 	VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingFeatures = {};
@@ -415,6 +428,102 @@ void Application::CreateOutputImage()
 	debugUtils.SetObjectName(outputImageMemory_->Handle(), "Output Image Memory");
 	debugUtils.SetObjectName(outputImageView_->Handle(), "Output ImageView");
 
+}
+
+void Application::SaveOutputPng(const std::string& path)
+{
+	if (!outputImage_)
+	{
+		Throw(std::runtime_error("cannot save PNG without an output image"));
+	}
+
+	const auto extent = outputImage_->Extent();
+	VkDeviceSize bytesPerPixel = 0;
+	switch (outputImage_->Format())
+	{
+	case VK_FORMAT_R8G8B8A8_UNORM:
+	case VK_FORMAT_R8G8B8A8_SRGB:
+	case VK_FORMAT_B8G8R8A8_UNORM:
+	case VK_FORMAT_B8G8R8A8_SRGB:
+		bytesPerPixel = 4;
+		break;
+	case VK_FORMAT_R32G32B32A32_SFLOAT:
+		bytesPerPixel = 16;
+		break;
+	default:
+		Throw(std::runtime_error("unsupported output image format for PNG export"));
+	}
+
+	const VkDeviceSize bufferSize = static_cast<VkDeviceSize>(extent.width) * extent.height * bytesPerPixel;
+
+	Buffer stagingBuffer(Device(), bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	auto stagingMemory = stagingBuffer.AllocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	SingleTimeCommands::Submit(CommandPool(), [this, &stagingBuffer, extent](VkCommandBuffer commandBuffer)
+	{
+		VkBufferImageCopy region = {};
+		region.bufferOffset = 0;
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.mipLevel = 0;
+		region.imageSubresource.baseArrayLayer = 0;
+		region.imageSubresource.layerCount = 1;
+		region.imageOffset = { 0, 0, 0 };
+		region.imageExtent = { extent.width, extent.height, 1 };
+
+		vkCmdCopyImageToBuffer(
+			commandBuffer,
+			outputImage_->Handle(),
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			stagingBuffer.Handle(),
+			1,
+			&region);
+	});
+
+	const auto* mappedData = static_cast<const std::uint8_t*>(stagingMemory.Map(0, bufferSize));
+	std::vector<std::uint8_t> rgbaPixels(static_cast<size_t>(extent.width) * extent.height * 4);
+
+	switch (outputImage_->Format())
+	{
+	case VK_FORMAT_R8G8B8A8_UNORM:
+	case VK_FORMAT_R8G8B8A8_SRGB:
+		std::copy(mappedData, mappedData + bufferSize, rgbaPixels.begin());
+		for (size_t i = 3; i < rgbaPixels.size(); i += 4)
+		{
+			rgbaPixels[i] = 255;
+		}
+		break;
+	case VK_FORMAT_B8G8R8A8_UNORM:
+	case VK_FORMAT_B8G8R8A8_SRGB:
+		for (size_t i = 0; i < rgbaPixels.size(); i += 4)
+		{
+			rgbaPixels[i + 0] = mappedData[i + 2];
+			rgbaPixels[i + 1] = mappedData[i + 1];
+			rgbaPixels[i + 2] = mappedData[i + 0];
+			rgbaPixels[i + 3] = 255;
+		}
+		break;
+	case VK_FORMAT_R32G32B32A32_SFLOAT:
+		{
+			const auto* floatPixels = reinterpret_cast<const float*>(mappedData);
+			for (size_t i = 0, j = 0; i < rgbaPixels.size(); i += 4, j += 4)
+			{
+				rgbaPixels[i + 0] = FloatToByte(floatPixels[j + 0]);
+				rgbaPixels[i + 1] = FloatToByte(floatPixels[j + 1]);
+				rgbaPixels[i + 2] = FloatToByte(floatPixels[j + 2]);
+				rgbaPixels[i + 3] = 255;
+			}
+		}
+		break;
+	default:
+		stagingMemory.Unmap();
+		Throw(std::runtime_error("unsupported output image format for PNG export"));
+	}
+
+	stagingMemory.Unmap();
+	Utilities::WritePng(path, extent.width, extent.height, rgbaPixels);
+	std::cout << "Saved PNG: " << path << std::endl;
 }
 
 }

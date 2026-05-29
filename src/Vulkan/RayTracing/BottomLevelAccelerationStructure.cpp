@@ -4,6 +4,7 @@
 #include "Assets/Vertex.hpp"
 #include "Utilities/Exception.hpp"
 #include "Vulkan/Buffer.hpp"
+#include <cstdio>
 
 namespace Vulkan::RayTracing {
 

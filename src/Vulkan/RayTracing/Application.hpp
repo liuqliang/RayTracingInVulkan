@@ -2,6 +2,7 @@
 
 #include "Vulkan/Application.hpp"
 #include "RayTracingProperties.hpp"
+#include <string>
 
 namespace Vulkan
 {
@@ -36,6 +37,7 @@ namespace Vulkan::RayTracing
 		void CreateSwapChain() override;
 		void DeleteSwapChain() override;
 		void Render(VkCommandBuffer commandBuffer, uint32_t imageIndex) override;
+		void SaveOutputPng(const std::string& path);
 			   
 	private:
 

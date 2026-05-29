@@ -10,7 +10,13 @@
 #include "Vulkan/Device.hpp"
 #include "Vulkan/SwapChain.hpp"
 #include "Vulkan/Window.hpp"
+#include <chrono>
+#include <cctype>
+#include <ctime>
+#include <filesystem>
+#include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 
 namespace
@@ -21,6 +27,68 @@ namespace
 #else
 		true;
 #endif
+
+	std::string SanitizeSceneName(std::string name)
+	{
+		for (char& ch : name)
+		{
+			const auto uch = static_cast<unsigned char>(ch);
+			if (std::isalnum(uch))
+			{
+				ch = static_cast<char>(std::tolower(uch));
+			}
+			else
+			{
+				ch = '_';
+			}
+		}
+
+		std::string sanitized;
+		sanitized.reserve(name.size());
+		bool previousUnderscore = false;
+		for (char ch : name)
+		{
+			if (ch == '_')
+			{
+				if (!previousUnderscore)
+				{
+					sanitized.push_back(ch);
+				}
+				previousUnderscore = true;
+			}
+			else
+			{
+				sanitized.push_back(ch);
+				previousUnderscore = false;
+			}
+		}
+
+		while (!sanitized.empty() && sanitized.front() == '_')
+		{
+			sanitized.erase(sanitized.begin());
+		}
+
+		while (!sanitized.empty() && sanitized.back() == '_')
+		{
+			sanitized.pop_back();
+		}
+
+		return sanitized.empty() ? "scene" : sanitized;
+	}
+
+	std::string BuildOutputFilename(const uint32_t sceneIndex)
+	{
+		const auto now = std::chrono::system_clock::now();
+		const auto time = std::chrono::system_clock::to_time_t(now);
+		std::tm localTime{};
+		localtime_r(&time, &localTime);
+
+		std::ostringstream filename;
+		filename << std::put_time(&localTime, "%Y%m%d-%H%M%S");
+		filename << "_" << SanitizeSceneName(SceneList::AllScenes.at(sceneIndex).first);
+		filename << ".png";
+		return filename.str();
+	}
 }
 
 RayTracer::RayTracer(const UserSettings& userSettings, const Vulkan::WindowConfig& windowConfig, const VkPresentModeKHR presentMode) :
@@ -146,8 +214,28 @@ void RayTracer::DrawFrame()
 	// Keep track of our sample count.
 	numberOfSamples_ = glm::clamp(userSettings_.MaxNumberOfSamples - totalNumberOfSamples_, 0u, userSettings_.NumberOfSamples);
 	totalNumberOfSamples_ += numberOfSamples_;
+	const bool sampleBudgetReached = totalNumberOfSamples_ >= userSettings_.MaxNumberOfSamples;
 
 	Application::DrawFrame();
+
+	#ifdef OFFSCREEN_RENDERING
+	if (sampleBudgetReached)
+	{
+		if (IsSimulatorRun())
+		{
+			// In simulator mode, Vulkan-Sim already writes the final SCENE.ppm.
+			// Waiting for the last submitted fence is enough to ensure that frame finished
+			// without taking the more fragile full-device idle + readback path.
+			WaitForLastSubmittedFrame(std::numeric_limits<uint64_t>::max());
+		}
+		else
+		{
+			Device().WaitIdle();
+			SaveOutputPng(std::filesystem::absolute(BuildOutputFilename(sceneIndex_)).string());
+		}
+		Window().Close();
+	}
+	#endif
 }
 
 void RayTracer::Render(VkCommandBuffer commandBuffer, const uint32_t imageIndex)
@@ -336,6 +424,7 @@ void RayTracer::CheckAndUpdateBenchmarkState(double prevTime)
 			if (!userSettings_.BenchmarkNextScenes || static_cast<size_t>(userSettings_.SceneIndex) == SceneList::AllScenes.size() - 1)
 			{
 				Window().Close();
+				return;
 			}
 
 			std::cout << std::endl;

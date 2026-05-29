@@ -2,6 +2,7 @@
 #include "Assets/Material.hpp"
 #include "Assets/Model.hpp"
 #include "Assets/Texture.hpp"
+#include <cstdio>
 #include <functional>
 #include <random>
 #include <filesystem>

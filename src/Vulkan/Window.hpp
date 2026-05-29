@@ -46,6 +46,7 @@ namespace Vulkan
 
 		const WindowConfig config_;
 		GLFWwindow* window_{};
+		bool closeRequested_{false};
 	};
 
 }
