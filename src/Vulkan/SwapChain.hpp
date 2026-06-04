@@ -7,6 +7,8 @@
 namespace Vulkan
 {
 	class Device;
+	class DeviceMemory;
+	class Image;
 	class ImageView;
 	class Window;
 
@@ -54,6 +56,10 @@ namespace Vulkan
 		VkExtent2D extent_{};
 		std::vector<VkImage> images_;
 		std::vector<std::unique_ptr<ImageView>> imageViews_;
+#ifdef OFFSCREEN_RENDERING
+		std::unique_ptr<Image> offscreenImage_;
+		std::unique_ptr<DeviceMemory> offscreenImageMemory_;
+#endif
 	};
 
 }
