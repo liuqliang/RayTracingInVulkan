@@ -30,7 +30,7 @@ namespace Vulkan::RayTracing {
 
 namespace
 {
-	constexpr uint32_t MaxTextureSamplers = 32;
+	constexpr uint32_t MaxTextureSamplers = 256;
 
 	template <class TAccelerationStructure>
 	VkAccelerationStructureBuildSizesInfoKHR GetTotalRequirements(const std::vector<TAccelerationStructure>& accelerationStructures)

@@ -4,7 +4,7 @@ const uint MaterialMetallic = 1;
 const uint MaterialDielectric = 2;
 const uint MaterialIsotropic = 3;
 const uint MaterialDiffuseLight = 4;
-const int MaxTextureSamplers = 32;
+const int MaxTextureSamplers = 256;
 
 struct Material
 {

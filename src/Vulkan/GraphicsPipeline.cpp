@@ -16,7 +16,7 @@ namespace Vulkan {
 
 namespace
 {
-	constexpr uint32_t MaxTextureSamplers = 32;
+	constexpr uint32_t MaxTextureSamplers = 256;
 }
 
 GraphicsPipeline::GraphicsPipeline(
