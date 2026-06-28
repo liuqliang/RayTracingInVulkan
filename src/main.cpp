@@ -102,7 +102,7 @@ namespace
 		userSettings.Width = options.Width;
 		userSettings.Height = options.Height;
 
-		userSettings.IsRayTraced = true;
+		userSettings.IsRayTraced = !options.Raster;
 		userSettings.AccumulateRays = true;
 		userSettings.NumberOfSamples = options.Samples;
 		userSettings.NumberOfBounces = options.Bounces;

@@ -23,6 +23,7 @@ Options::Options(const int argc, const char* argv[])
 		("shadowrays", value<uint32_t>(&ShadowRays)->default_value(16), "The number of shadow rays to trace per primary intersection.")
 		("max-samples", value<uint32_t>(&MaxSamples)->default_value(64 * 1024), "The maximum number of accumulated ray samples per pixel.")
 		("shader-type", value<uint32_t>(&ShaderType)->default_value(0), "The type of .rgen shader to use.")
+		("raster", bool_switch(&Raster)->default_value(false), "Use the raster graphics path instead of the ray tracing path.")
 		;
 
 	options_description scene("Scene options", lineLength);
@@ -70,4 +71,3 @@ Options::Options(const int argc, const char* argv[])
 		Throw(std::out_of_range("invalid present mode"));
 	}
 }
-

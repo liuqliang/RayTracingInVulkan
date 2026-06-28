@@ -158,6 +158,11 @@ void Application::CreateSwapChain()
 {
 	Vulkan::Application::CreateSwapChain();
 
+	if (!UseRayTracingPipeline())
+	{
+		return;
+	}
+
 	CreateOutputImage();
 
 	rayTracingPipeline_.reset(new RayTracingPipeline(*deviceProcedures_, SwapChain(), topAs_[0], *accumulationImageView_, *outputImageView_, UniformBuffers(), GetScene(), GetShaderType()));

@@ -162,14 +162,21 @@ void Application::CreateSwapChain()
 		uniformBuffers_.emplace_back(*device_);
 	}
 
-#ifndef OFFSCREEN_RENDERING
-	graphicsPipeline_.reset(new class GraphicsPipeline(*swapChain_, *depthBuffer_, uniformBuffers_, GetScene(), isWireFrame_));
-
-	for (const auto& imageView : swapChain_->ImageViews())
-	{
-		swapChainFramebuffers_.emplace_back(*imageView, graphicsPipeline_->RenderPass());
-	}
+#ifdef OFFSCREEN_RENDERING
+	const bool createGraphicsPipeline = UseGraphicsPipeline();
+#else
+	const bool createGraphicsPipeline = true;
 #endif
+
+	if (createGraphicsPipeline)
+	{
+		graphicsPipeline_.reset(new class GraphicsPipeline(*swapChain_, *depthBuffer_, uniformBuffers_, GetScene(), isWireFrame_));
+
+		for (const auto& imageView : swapChain_->ImageViews())
+		{
+			swapChainFramebuffers_.emplace_back(*imageView, graphicsPipeline_->RenderPass());
+		}
+	}
 
 	commandBuffers_.reset(new CommandBuffers(*commandPool_, static_cast<uint32_t>(swapChain_->ImageViews().size())));
 }

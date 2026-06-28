@@ -163,7 +163,10 @@ void RayTracer::OnDeviceSet()
 	Application::OnDeviceSet();
 
 	LoadScene(userSettings_.SceneIndex);
-	CreateAccelerationStructures();
+	if (userSettings_.IsRayTraced)
+	{
+		CreateAccelerationStructures();
+	}
 }
 
 void RayTracer::CreateSwapChain()
@@ -193,9 +196,15 @@ void RayTracer::DrawFrame()
 	{
 		Device().WaitIdle();
 		DeleteSwapChain();
-		DeleteAccelerationStructures();
+		if (userSettings_.IsRayTraced)
+		{
+			DeleteAccelerationStructures();
+		}
 		LoadScene(userSettings_.SceneIndex);
-		CreateAccelerationStructures();
+		if (userSettings_.IsRayTraced)
+		{
+			CreateAccelerationStructures();
+		}
 		CreateSwapChain();
 		return;
 	}

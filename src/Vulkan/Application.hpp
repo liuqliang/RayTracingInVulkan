@@ -47,6 +47,7 @@ namespace Vulkan
 		const class FrameBuffer& SwapChainFrameBuffer(const size_t i) const { return swapChainFramebuffers_[i]; }
 		bool IsSimulatorRun() const;
 		void WaitForLastSubmittedFrame(uint64_t timeout) const;
+		virtual bool UseGraphicsPipeline() const { return true; }
 		
 		virtual const Assets::Scene& GetScene() const = 0;
 		virtual const uint32_t GetShaderType() const = 0;

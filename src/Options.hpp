@@ -34,6 +34,7 @@ public:
 	uint32_t ShadowRays{};
 	uint32_t MaxSamples{};
 	uint32_t ShaderType{};
+	bool Raster{};
 
 	// Window options
 	uint32_t Width{};

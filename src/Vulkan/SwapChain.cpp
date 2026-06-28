@@ -23,7 +23,12 @@ SwapChain::SwapChain(const class Device& device, const VkPresentModeKHR presentM
 	// default surface format
 	VkSurfaceFormatKHR surfaceFormat = { VK_FORMAT_R32G32B32A32_SFLOAT, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 
-	offscreenImage_.reset(new Image(device, extent, surfaceFormat.format));
+	offscreenImage_.reset(new Image(
+		device,
+		extent,
+		surfaceFormat.format,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
 	offscreenImageMemory_.reset(new DeviceMemory(offscreenImage_->AllocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)));
 
 	// Use pre-set values for offscreen rendering

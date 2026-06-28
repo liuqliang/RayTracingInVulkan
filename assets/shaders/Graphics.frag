@@ -3,8 +3,10 @@
 #extension GL_GOOGLE_include_directive : require
 #include "Material.glsl"
 
+const int GraphicsMaxTextureSamplers = 32;
+
 layout(binding = 1) readonly buffer MaterialArray { Material[] Materials; };
-layout(binding = 2) uniform sampler2D TextureSamplers[MaxTextureSamplers];
+layout(binding = 2) uniform sampler2D TextureSamplers[GraphicsMaxTextureSamplers];
 
 layout(location = 0) in vec3 FragColor;
 layout(location = 1) in vec3 FragNormal;
@@ -20,7 +22,7 @@ void main()
 	const float d = max(dot(lightVector, normalize(FragNormal)), 0.2);
 	
 	vec3 c = FragColor * d;
-	if (textureId >= 0)
+	if (textureId >= 0 && textureId < GraphicsMaxTextureSamplers)
 	{
 		c *= texture(TextureSamplers[textureId], FragTexCoord).rgb;
 	}
