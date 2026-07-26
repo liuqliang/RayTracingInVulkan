@@ -247,6 +247,12 @@ RayTracingPipeline::RayTracingPipeline(
 			closestHitShader = new ShaderModule(device, "../assets/shaders/RayTracing.rchit.spv");
 			anyhitShader = new ShaderModule(device, "../assets/shaders/TraceIgnore.rahit.spv");
 			break;
+		case 7:
+			printf("RTV: Using anyhit terminate validation shader.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceTree.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/RayTracing.rchit.spv");
+			anyhitShader = new ShaderModule(device, "../assets/shaders/TraceTerminate.rahit.spv");
+			break;
 		default:
 			printf("Unrecognized shader type: %d\n", shaderType);
 			break;
