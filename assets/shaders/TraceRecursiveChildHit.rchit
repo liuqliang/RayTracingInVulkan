@@ -1,0 +1,31 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+
+#include "RayPayload.glsl"
+
+layout(binding = 0, set = 0) uniform accelerationStructureEXT Scene;
+layout(location = 0) rayPayloadInEXT RayPayload Ray;
+hitAttributeEXT vec2 HitAttributes;
+
+void main()
+{
+    if (Ray.ScatterDirection.w < 0.5) {
+        const vec3 parentOrigin = gl_WorldRayOriginEXT;
+        const vec3 parentDirection = gl_WorldRayDirectionEXT;
+        const float parentT = gl_HitTEXT;
+        Ray.ScatterDirection.w = 1.0;
+        traceRayEXT(Scene, gl_RayFlagsOpaqueEXT, 0xff,
+                    0, 0, 0, parentOrigin, 0.001,
+                    parentDirection, 10000.0, 0);
+        const bool parentRestored =
+            all(equal(parentOrigin, gl_WorldRayOriginEXT)) &&
+            all(equal(parentDirection, gl_WorldRayDirectionEXT)) &&
+            parentT == gl_HitTEXT;
+        Ray.ColorAndDistance = parentRestored
+            ? vec4(0.125, 0.25, 0.875, parentT)
+            : vec4(1.0, 0.0, 0.0, -2.0);
+    } else {
+        Ray.ColorAndDistance = vec4(0.25, 0.25, 0.75, gl_HitTEXT);
+    }
+}

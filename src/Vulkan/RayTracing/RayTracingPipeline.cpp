@@ -209,6 +209,7 @@ RayTracingPipeline::RayTracingPipeline(
 	ShaderModule* rayGenShader; 
 	ShaderModule* closestHitShader;
 	ShaderModule* anyhitShader = NULL;
+	const char* missShaderPath = "../assets/shaders/RayTracing.rmiss.spv";
 	switch (shaderType) {
 		case 0:
 			printf("RTV: Using regular path tracing shaders.\n");
@@ -253,11 +254,32 @@ RayTracingPipeline::RayTracingPipeline(
 			closestHitShader = new ShaderModule(device, "../assets/shaders/RayTracing.rchit.spv");
 			anyhitShader = new ShaderModule(device, "../assets/shaders/TraceTerminate.rahit.spv");
 			break;
+		case 8:
+			printf("RTV: Using recursive closest-hit to child-miss validation shader.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceRecursive.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceRecursiveChildMiss.rchit.spv");
+			break;
+		case 9:
+			printf("RTV: Using recursive closest-hit to child-hit validation shader.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceRecursive.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceRecursiveChildHit.rchit.spv");
+			break;
+		case 10:
+			printf("RTV: Using recursive miss to child-miss validation shader.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceRecursiveMiss.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceRecursiveChildHit.rchit.spv");
+			missShaderPath = "../assets/shaders/TraceRecursiveMiss.rmiss.spv";
+			break;
+		case 11:
+			printf("RTV: Using recursive trace-depth overflow validation shader.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceRecursive.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceRecursiveDepthOverflow.rchit.spv");
+			break;
 		default:
 			printf("Unrecognized shader type: %d\n", shaderType);
 			break;
 	}
-	const ShaderModule missShader(device, "../assets/shaders/RayTracing.rmiss.spv");
+	const ShaderModule missShader(device, missShaderPath);
 	#ifdef USE_PROCEDURALS
 	const ShaderModule proceduralClosestHitShader(device, "../assets/shaders/RayTracing.Procedural.rchit.spv");
 	const ShaderModule proceduralIntersectionShader(device, "../assets/shaders/RayTracing.Procedural.rint.spv");
@@ -390,7 +412,8 @@ RayTracingPipeline::RayTracingPipeline(
 	pipelineInfo.pStages = shaderStages.data();
 	pipelineInfo.groupCount = static_cast<uint32_t>(groups.size());
 	pipelineInfo.pGroups = groups.data();
-	pipelineInfo.maxPipelineRayRecursionDepth = 1;
+	pipelineInfo.maxPipelineRayRecursionDepth =
+		(shaderType >= 8 && shaderType <= 11) ? 2 : 1;
 	pipelineInfo.layout = pipelineLayout_->Handle();
 	pipelineInfo.basePipelineHandle = nullptr;
 	pipelineInfo.basePipelineIndex = 0;
