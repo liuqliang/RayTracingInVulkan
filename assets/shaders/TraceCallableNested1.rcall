@@ -1,0 +1,24 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+
+struct CallableData
+{
+    vec4 Result;
+    uint Guard;
+};
+
+layout(location = 2) callableDataInEXT CallableData Child;
+
+void main()
+{
+    if (Child.Guard == 0x11223344u)
+    {
+        Child.Result = vec4(0.375, 0.625, 0.875, 1.0);
+        Child.Guard = 0x55667788u;
+    }
+    else
+    {
+        Child.Result = vec4(1.0, 0.0, 0.0, 0.0);
+        Child.Guard = 0u;
+    }
+}

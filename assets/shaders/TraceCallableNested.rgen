@@ -1,0 +1,22 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+
+struct CallableData
+{
+    vec4 Result;
+    uint Guard;
+};
+
+layout(binding = 1, rgba32f) uniform image2D AccumulationImage;
+layout(binding = 2, rgba32f) uniform image2D OutputImage;
+layout(location = 1) callableDataEXT CallableData Call;
+
+void main()
+{
+    Call.Result = vec4(0.0);
+    Call.Guard = 0x2468ace0u;
+    executeCallableEXT(0, 1);
+    const vec4 color = vec4(Call.Result.xyz, 0.0);
+    imageStore(AccumulationImage, ivec2(gl_LaunchIDEXT.xy), color);
+    imageStore(OutputImage, ivec2(gl_LaunchIDEXT.xy), color);
+}

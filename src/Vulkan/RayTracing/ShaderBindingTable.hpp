@@ -37,7 +37,8 @@ namespace Vulkan::RayTracing
 			const RayTracingProperties& rayTracingProperties,
 			const std::vector<Entry>& rayGenPrograms,
 			const std::vector<Entry>& missPrograms,
-			const std::vector<Entry>& hitGroups);
+			const std::vector<Entry>& hitGroups,
+			const std::vector<Entry>& callablePrograms);
 
 		~ShaderBindingTable();
 
@@ -46,32 +47,39 @@ namespace Vulkan::RayTracing
 		VkDeviceAddress RayGenDeviceAddress() const { return Buffer().GetDeviceAddress() + RayGenOffset(); }
 		VkDeviceAddress MissDeviceAddress() const { return Buffer().GetDeviceAddress() + MissOffset(); }
 		VkDeviceAddress HitGroupDeviceAddress() const { return Buffer().GetDeviceAddress() + HitGroupOffset(); }
+		VkDeviceAddress CallableDeviceAddress() const { return callableSize_ == 0 ? 0 : Buffer().GetDeviceAddress() + CallableOffset(); }
 
 		size_t RayGenOffset() const { return rayGenOffset_; }
 		size_t MissOffset() const { return missOffset_; }
 		size_t HitGroupOffset() const { return hitGroupOffset_; }
+		size_t CallableOffset() const { return callableOffset_; }
 
 		size_t RayGenSize() const { return rayGenSize_; }
 		size_t MissSize() const { return missSize_; }
 		size_t HitGroupSize() const { return hitGroupSize_; }
+		size_t CallableSize() const { return callableSize_; }
 
 		size_t RayGenEntrySize() const { return rayGenEntrySize_; }
 		size_t MissEntrySize() const { return missEntrySize_; }
 		size_t HitGroupEntrySize() const { return hitGroupEntrySize_; }
+		size_t CallableEntrySize() const { return callableEntrySize_; }
 
 	private:
 
 		const size_t rayGenEntrySize_;
 		const size_t missEntrySize_;
 		const size_t hitGroupEntrySize_;
+		const size_t callableEntrySize_;
 
 		const size_t rayGenOffset_;
 		const size_t missOffset_;
 		const size_t hitGroupOffset_;
+		const size_t callableOffset_;
 
 		const size_t rayGenSize_;
 		const size_t missSize_;
 		const size_t hitGroupSize_;
+		const size_t callableSize_;
 
 		std::unique_ptr<class Buffer> buffer_;
 		std::unique_ptr<DeviceMemory> bufferMemory_;

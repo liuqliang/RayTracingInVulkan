@@ -174,7 +174,12 @@ void Application::CreateSwapChain()
 #else
 	const std::vector<ShaderBindingTable::Entry> hitGroups = { {rayTracingPipeline_->TriangleHitGroupIndex(), {}} };
 #endif
-	shaderBindingTable_.reset(new ShaderBindingTable(*deviceProcedures_, *rayTracingPipeline_, *rayTracingProperties_, rayGenPrograms, missPrograms, hitGroups));
+	std::vector<ShaderBindingTable::Entry> callablePrograms;
+	for (const uint32_t groupIndex : rayTracingPipeline_->CallableShaderIndexes())
+	{
+		callablePrograms.push_back({groupIndex, {}});
+	}
+	shaderBindingTable_.reset(new ShaderBindingTable(*deviceProcedures_, *rayTracingPipeline_, *rayTracingProperties_, rayGenPrograms, missPrograms, hitGroups, callablePrograms));
 }
 
 void Application::DeleteSwapChain()
@@ -234,6 +239,9 @@ void Application::Render(VkCommandBuffer commandBuffer, const uint32_t imageInde
 	hitShaderBindingTable.size = shaderBindingTable_->HitGroupSize();
 
 	VkStridedDeviceAddressRegionKHR callableShaderBindingTable = {};
+	callableShaderBindingTable.deviceAddress = shaderBindingTable_->CallableDeviceAddress();
+	callableShaderBindingTable.stride = shaderBindingTable_->CallableEntrySize();
+	callableShaderBindingTable.size = shaderBindingTable_->CallableSize();
 
 	// Execute ray tracing shaders.
 	printf("RTV: Trace ray...\n");

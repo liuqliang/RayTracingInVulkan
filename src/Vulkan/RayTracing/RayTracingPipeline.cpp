@@ -209,6 +209,7 @@ RayTracingPipeline::RayTracingPipeline(
 	ShaderModule* rayGenShader; 
 	ShaderModule* closestHitShader;
 	ShaderModule* anyhitShader = NULL;
+	std::vector<ShaderModule*> callableShaders;
 	const char* missShaderPath = "../assets/shaders/RayTracing.rmiss.spv";
 	switch (shaderType) {
 		case 0:
@@ -275,6 +276,32 @@ RayTracingPipeline::RayTracingPipeline(
 			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceRecursive.rgen.spv");
 			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceRecursiveDepthOverflow.rchit.spv");
 			break;
+		case 12:
+			printf("RTV: Using ray-generation callable validation shaders.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceCallable.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/RayTracing.rchit.spv");
+			callableShaders.push_back(new ShaderModule(device, "../assets/shaders/TraceCallablePrimary.rcall.spv"));
+			break;
+		case 13:
+			printf("RTV: Using closest-hit callable validation shaders.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceRecursive.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceCallable.rchit.spv");
+			callableShaders.push_back(new ShaderModule(device, "../assets/shaders/TraceCallablePrimary.rcall.spv"));
+			break;
+		case 14:
+			printf("RTV: Using miss callable validation shaders.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceRecursiveMiss.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/RayTracing.rchit.spv");
+			missShaderPath = "../assets/shaders/TraceCallable.rmiss.spv";
+			callableShaders.push_back(new ShaderModule(device, "../assets/shaders/TraceCallablePrimary.rcall.spv"));
+			break;
+		case 15:
+			printf("RTV: Using nested callable validation shaders.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceCallableNested.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/RayTracing.rchit.spv");
+			callableShaders.push_back(new ShaderModule(device, "../assets/shaders/TraceCallableNested0.rcall.spv"));
+			callableShaders.push_back(new ShaderModule(device, "../assets/shaders/TraceCallableNested1.rcall.spv"));
+			break;
 		default:
 			printf("Unrecognized shader type: %d\n", shaderType);
 			break;
@@ -312,6 +339,14 @@ RayTracingPipeline::RayTracingPipeline(
 	if (anyhitShader != NULL) {
 		shaderStages.push_back(
 			anyhitShader->CreateShaderStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR)
+		);
+	}
+
+	std::vector<uint32_t> callableStageIndexes;
+	for (ShaderModule* callableShader : callableShaders) {
+		callableStageIndexes.push_back(static_cast<uint32_t>(shaderStages.size()));
+		shaderStages.push_back(
+			callableShader->CreateShaderStage(VK_SHADER_STAGE_CALLABLE_BIT_KHR)
 		);
 	}
 
@@ -402,6 +437,19 @@ RayTracingPipeline::RayTracingPipeline(
 		// proceduralMandelbulbHitGroupInfo
 		#endif
 	};
+
+	for (const uint32_t callableStageIndex : callableStageIndexes) {
+		VkRayTracingShaderGroupCreateInfoKHR callableGroupInfo = {};
+		callableGroupInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+		callableGroupInfo.pNext = nullptr;
+		callableGroupInfo.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+		callableGroupInfo.generalShader = callableStageIndex;
+		callableGroupInfo.closestHitShader = VK_SHADER_UNUSED_KHR;
+		callableGroupInfo.anyHitShader = VK_SHADER_UNUSED_KHR;
+		callableGroupInfo.intersectionShader = VK_SHADER_UNUSED_KHR;
+		callableGroupIndexes_.push_back(static_cast<uint32_t>(groups.size()));
+		groups.push_back(callableGroupInfo);
+	}
 
 	// Create graphic pipeline
 	VkRayTracingPipelineCreateInfoKHR pipelineInfo = {};

@@ -65,25 +65,30 @@ ShaderBindingTable::ShaderBindingTable(
 	const RayTracingProperties& rayTracingProperties,
 	const std::vector<Entry>& rayGenPrograms,
 	const std::vector<Entry>& missPrograms, 
-	const std::vector<Entry>& hitGroups) :
+	const std::vector<Entry>& hitGroups,
+	const std::vector<Entry>& callablePrograms) :
 	
 	rayGenEntrySize_(GetEntrySize(rayTracingProperties, rayGenPrograms)),
 	missEntrySize_(GetEntrySize(rayTracingProperties, missPrograms)),
 	hitGroupEntrySize_(GetEntrySize(rayTracingProperties, hitGroups)),
+	callableEntrySize_(callablePrograms.empty() ? 0 : GetEntrySize(rayTracingProperties, callablePrograms)),
 	
 	rayGenOffset_(0),
 	missOffset_(rayGenPrograms.size() * rayGenEntrySize_),
 	hitGroupOffset_(missOffset_ + missPrograms.size() * missEntrySize_),
+	callableOffset_(hitGroupOffset_ + hitGroups.size() * hitGroupEntrySize_),
 
 	rayGenSize_(rayGenPrograms.size() * rayGenEntrySize_),
 	missSize_(missPrograms.size() * missEntrySize_),
-	hitGroupSize_(hitGroups.size() * hitGroupEntrySize_)
+	hitGroupSize_(hitGroups.size() * hitGroupEntrySize_),
+	callableSize_(callablePrograms.size() * callableEntrySize_)
 {
 	// Compute the size of the table.
 	const size_t sbtSize =
 		rayGenPrograms.size() * rayGenEntrySize_ +
 		missPrograms.size() * missEntrySize_ +
-		hitGroups.size() * hitGroupEntrySize_;
+		hitGroups.size() * hitGroupEntrySize_ +
+		callablePrograms.size() * callableEntrySize_;
 
 	// Allocate buffer & memory.
 	const auto& device = rayTracingProperties.Device();
@@ -93,7 +98,8 @@ ShaderBindingTable::ShaderBindingTable(
 
 	// Generate the table.
 	const uint32_t handleSize = rayTracingProperties.ShaderGroupHandleSize();
-	const size_t groupCount = rayGenPrograms.size() + missPrograms.size() + hitGroups.size();
+	const size_t groupCount = rayGenPrograms.size() + missPrograms.size() +
+		hitGroups.size() + callablePrograms.size();
 	std::vector<uint8_t> shaderHandleStorage(groupCount * handleSize);
 
 	printf("RTV: Get ray tracing shader group handles... group count: %ld; handle size: %d\n", groupCount, handleSize);
@@ -114,7 +120,9 @@ ShaderBindingTable::ShaderBindingTable(
 	printf("RTV: CopyShaderData (size %ld) from %p to %p for miss shader\n", missEntrySize_, shaderHandleStorage.data(), pData);
 	pData += CopyShaderData(pData, rayTracingProperties, missPrograms, missEntrySize_, shaderHandleStorage.data());
 	printf("RTV: CopyShaderData (size %ld) from %p to %p for hit shader\n", hitGroupEntrySize_, shaderHandleStorage.data(), pData);
-	         CopyShaderData(pData, rayTracingProperties, hitGroups, hitGroupEntrySize_, shaderHandleStorage.data());
+	pData += CopyShaderData(pData, rayTracingProperties, hitGroups, hitGroupEntrySize_, shaderHandleStorage.data());
+	printf("RTV: CopyShaderData (size %ld) from %p to %p for callable shader\n", callableEntrySize_, shaderHandleStorage.data(), pData);
+	CopyShaderData(pData, rayTracingProperties, callablePrograms, callableEntrySize_, shaderHandleStorage.data());
 
 	bufferMemory_->Unmap();
 }

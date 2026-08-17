@@ -46,6 +46,7 @@ namespace Vulkan::RayTracing
 		uint32_t RayGenShaderIndex() const { return rayGenIndex_; }
 		uint32_t MissShaderIndex() const { return missIndex_; }
 		uint32_t TriangleHitGroupIndex() const { return triangleHitGroupIndex_; }
+		const std::vector<uint32_t>& CallableShaderIndexes() const { return callableGroupIndexes_; }
 		#ifdef USE_PROCEDURALS
 		uint32_t ProceduralHitGroupIndex() const { return proceduralHitGroupIndex_; }
 		uint32_t ProceduralCubeHitGroupIndex() const { return proceduralCubeHitGroupIndex_; }
@@ -68,6 +69,7 @@ namespace Vulkan::RayTracing
 		uint32_t rayGenIndex_;
 		uint32_t missIndex_;
 		uint32_t triangleHitGroupIndex_;
+		std::vector<uint32_t> callableGroupIndexes_;
 		#ifdef USE_PROCEDURALS
 		uint32_t proceduralHitGroupIndex_;
 		uint32_t proceduralCubeHitGroupIndex_;
