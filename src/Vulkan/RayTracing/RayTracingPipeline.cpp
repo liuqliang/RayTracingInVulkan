@@ -211,6 +211,8 @@ RayTracingPipeline::RayTracingPipeline(
 	ShaderModule* anyhitShader = NULL;
 	std::vector<ShaderModule*> callableShaders;
 	const char* missShaderPath = "../assets/shaders/RayTracing.rmiss.spv";
+	const char* proceduralClosestHitPath = "../assets/shaders/RayTracing.Procedural.rchit.spv";
+	const char* proceduralIntersectionPath = "../assets/shaders/RayTracing.Procedural.rint.spv";
 	switch (shaderType) {
 		case 0:
 			printf("RTV: Using regular path tracing shaders.\n");
@@ -302,14 +304,57 @@ RayTracingPipeline::RayTracingPipeline(
 			callableShaders.push_back(new ShaderModule(device, "../assets/shaders/TraceCallableNested0.rcall.spv"));
 			callableShaders.push_back(new ShaderModule(device, "../assets/shaders/TraceCallableNested1.rcall.spv"));
 			break;
+		case 16:
+			printf("RTV: Using ReportIntersection validation without AnyHit.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceReport.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceReport.rchit.spv");
+			missShaderPath = "../assets/shaders/TraceReport.rmiss.spv";
+			proceduralClosestHitPath = "../assets/shaders/TraceReport.rchit.spv";
+			proceduralIntersectionPath = "../assets/shaders/TraceReportSingle.rint.spv";
+			break;
+		case 17:
+			printf("RTV: Using procedural AnyHit accept validation.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceReport.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceReport.rchit.spv");
+			anyhitShader = new ShaderModule(device, "../assets/shaders/TraceReportAccept.rahit.spv");
+			missShaderPath = "../assets/shaders/TraceReport.rmiss.spv";
+			proceduralClosestHitPath = "../assets/shaders/TraceReport.rchit.spv";
+			proceduralIntersectionPath = "../assets/shaders/TraceReportSingle.rint.spv";
+			break;
+		case 18:
+			printf("RTV: Using procedural AnyHit ignore validation.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceReport.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceReport.rchit.spv");
+			anyhitShader = new ShaderModule(device, "../assets/shaders/TraceIgnore.rahit.spv");
+			missShaderPath = "../assets/shaders/TraceReport.rmiss.spv";
+			proceduralClosestHitPath = "../assets/shaders/TraceReport.rchit.spv";
+			proceduralIntersectionPath = "../assets/shaders/TraceReportSingle.rint.spv";
+			break;
+		case 19:
+			printf("RTV: Using procedural AnyHit terminate validation.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceReport.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceReport.rchit.spv");
+			anyhitShader = new ShaderModule(device, "../assets/shaders/TraceTerminate.rahit.spv");
+			missShaderPath = "../assets/shaders/TraceReport.rmiss.spv";
+			proceduralClosestHitPath = "../assets/shaders/TraceReport.rchit.spv";
+			proceduralIntersectionPath = "../assets/shaders/TraceReportSingle.rint.spv";
+			break;
+		case 20:
+			printf("RTV: Using multiple ReportIntersection closest-candidate validation.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceReport.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceReport.rchit.spv");
+			missShaderPath = "../assets/shaders/TraceReport.rmiss.spv";
+			proceduralClosestHitPath = "../assets/shaders/TraceReport.rchit.spv";
+			proceduralIntersectionPath = "../assets/shaders/TraceReportMultiple.rint.spv";
+			break;
 		default:
 			printf("Unrecognized shader type: %d\n", shaderType);
 			break;
 	}
 	const ShaderModule missShader(device, missShaderPath);
 	#ifdef USE_PROCEDURALS
-	const ShaderModule proceduralClosestHitShader(device, "../assets/shaders/RayTracing.Procedural.rchit.spv");
-	const ShaderModule proceduralIntersectionShader(device, "../assets/shaders/RayTracing.Procedural.rint.spv");
+	const ShaderModule proceduralClosestHitShader(device, proceduralClosestHitPath);
+	const ShaderModule proceduralIntersectionShader(device, proceduralIntersectionPath);
 	const ShaderModule proceduralCubeClosestHitShader(device, "../assets/shaders/RayTracing.ProceduralCube.rchit.spv");
 	const ShaderModule proceduralCubeIntersectionShader(device, "../assets/shaders/RayTracing.ProceduralCube.rint.spv");
 	const ShaderModule proceduralCylinderClosestHitShader(device, "../assets/shaders/RayTracing.ProceduralCylinder.rchit.spv");
@@ -336,7 +381,9 @@ RayTracingPipeline::RayTracingPipeline(
 		#endif
 	};
 
+	uint32_t anyhitStageIndex = VK_SHADER_UNUSED_KHR;
 	if (anyhitShader != NULL) {
+		anyhitStageIndex = static_cast<uint32_t>(shaderStages.size());
 		shaderStages.push_back(
 			anyhitShader->CreateShaderStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR)
 		);
@@ -377,7 +424,7 @@ RayTracingPipeline::RayTracingPipeline(
 	triangleHitGroupInfo.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
 	triangleHitGroupInfo.generalShader = VK_SHADER_UNUSED_KHR;
 	triangleHitGroupInfo.closestHitShader = 2;
-	triangleHitGroupInfo.anyHitShader = anyhitShader == NULL ? VK_SHADER_UNUSED_KHR : shaderStages.size() - 1;
+	triangleHitGroupInfo.anyHitShader = anyhitStageIndex;
 	triangleHitGroupInfo.intersectionShader = VK_SHADER_UNUSED_KHR;
 	triangleHitGroupIndex_ = 2;
 
@@ -390,7 +437,7 @@ RayTracingPipeline::RayTracingPipeline(
 	proceduralHitGroupInfo.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
 	proceduralHitGroupInfo.generalShader = VK_SHADER_UNUSED_KHR;
 	proceduralHitGroupInfo.closestHitShader = 3;
-	proceduralHitGroupInfo.anyHitShader = VK_SHADER_UNUSED_KHR;
+	proceduralHitGroupInfo.anyHitShader = anyhitStageIndex;
 	proceduralHitGroupInfo.intersectionShader = 6;
 	proceduralHitGroupIndex_ = 3;
 

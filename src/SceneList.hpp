@@ -58,6 +58,7 @@ public:
 	static SceneAssets ReflectiveCornellBoxLucy(CameraInitialSate& camera);
 	static SceneAssets Bathroom(CameraInitialSate& camera);
 	static SceneAssets TexturedBathroom(CameraInitialSate& camera);
+	static SceneAssets KHRProceduralValidation(CameraInitialSate& camera);
 
 	static SceneAssets CounterStrikeMap(CameraInitialSate& camera, std::string mp);
 	static SceneAssets CounterStrikeCache(CameraInitialSate& camera);

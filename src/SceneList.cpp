@@ -100,8 +100,27 @@ const std::vector<std::pair<std::string, std::function<SceneAssets (SceneList::C
 	{"Mandelbulb Test", MandelbulbScene},
 	{"Reflection Cornell Box & Lucy", ReflectiveCornellBoxLucy}, // REF
 	{"Bathroom", Bathroom}, // BATH
-	{"Chestnut", Chestnut} // CHSNT
+	{"Chestnut", Chestnut}, // CHSNT
+	{"KHR Procedural Validation", KHRProceduralValidation}
 };
+
+SceneAssets SceneList::KHRProceduralValidation(CameraInitialSate& camera)
+{
+	camera.ModelView = lookAt(vec3(0, 0, -2), vec3(0, 0, 0), vec3(0, 1, 0));
+	camera.FieldOfView = 45;
+	camera.Aperture = 0.0f;
+	camera.FocusDistance = 2.0f;
+	camera.ControlSpeed = 1.0f;
+	camera.GammaCorrection = false;
+	camera.HasSky = false;
+	camera.LightPosition = vec3(0);
+	camera.LightRadius = 0.0f;
+
+	std::vector<Model> models;
+	models.push_back(Model::CreateSphere(vec3(0), 1.0f,
+		Material::Lambertian(vec3(1.0f)), true));
+	return std::make_tuple(std::move(models), std::vector<Texture>());
+}
 
 SceneAssets SceneList::CubeAndSpheres(CameraInitialSate& camera)
 {
