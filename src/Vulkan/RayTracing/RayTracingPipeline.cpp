@@ -347,6 +347,17 @@ RayTracingPipeline::RayTracingPipeline(
 			proceduralClosestHitPath = "../assets/shaders/TraceReport.rchit.spv";
 			proceduralIntersectionPath = "../assets/shaders/TraceReportMultiple.rint.spv";
 			break;
+		case 21:
+			printf("RTV: Using per-lane divergent recursive-depth validation.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceDivergentDepth.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceDivergentDepth.rchit.spv");
+			break;
+		case 22:
+			printf("RTV: Using sequential non-nested TraceRay validation.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TraceSequential.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceSequential.rchit.spv");
+			missShaderPath = "../assets/shaders/TraceSequential.rmiss.spv";
+			break;
 		default:
 			printf("Unrecognized shader type: %d\n", shaderType);
 			break;
@@ -437,7 +448,12 @@ RayTracingPipeline::RayTracingPipeline(
 	proceduralHitGroupInfo.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
 	proceduralHitGroupInfo.generalShader = VK_SHADER_UNUSED_KHR;
 	proceduralHitGroupInfo.closestHitShader = 3;
-	proceduralHitGroupInfo.anyHitShader = anyhitStageIndex;
+	// Shader types 17-19 are the explicit procedural ReportIntersection +
+	// AnyHit workloads.  The legacy triangle AnyHit workloads (types 5-7)
+	// must not accidentally opt every procedural group into that candidate.
+	proceduralHitGroupInfo.anyHitShader =
+		(shaderType >= 17 && shaderType <= 19)
+			? anyhitStageIndex : VK_SHADER_UNUSED_KHR;
 	proceduralHitGroupInfo.intersectionShader = 6;
 	proceduralHitGroupIndex_ = 3;
 
@@ -507,8 +523,8 @@ RayTracingPipeline::RayTracingPipeline(
 	pipelineInfo.pStages = shaderStages.data();
 	pipelineInfo.groupCount = static_cast<uint32_t>(groups.size());
 	pipelineInfo.pGroups = groups.data();
-	pipelineInfo.maxPipelineRayRecursionDepth =
-		(shaderType >= 8 && shaderType <= 11) ? 2 : 1;
+	pipelineInfo.maxPipelineRayRecursionDepth = shaderType == 21 ? 3 :
+		((shaderType >= 8 && shaderType <= 11) ? 2 : 1);
 	pipelineInfo.layout = pipelineLayout_->Handle();
 	pipelineInfo.basePipelineHandle = nullptr;
 	pipelineInfo.basePipelineIndex = 0;

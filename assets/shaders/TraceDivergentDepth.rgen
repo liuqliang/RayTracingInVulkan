@@ -1,0 +1,44 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+
+#include "UniformBufferObject.glsl"
+
+struct DivergentPayload
+{
+    uint RemainingDepth;
+    uint ObservedDepth;
+    uint Error;
+};
+
+layout(binding = 0, set = 0) uniform accelerationStructureEXT Scene;
+layout(binding = 1, rgba32f) uniform image2D AccumulationImage;
+layout(binding = 2, rgba32f) uniform image2D OutputImage;
+layout(binding = 3) readonly uniform UniformBufferObjectStruct { UniformBufferObject Camera; };
+layout(location = 0) rayPayloadEXT DivergentPayload Ray;
+
+void main()
+{
+    // This acceptance workload launches exactly three pixels in one warp.
+    const uint laneClass = gl_LaunchIDEXT.x;
+    const uint expectedDepth = laneClass + 1u;
+    const vec4 origin = Camera.ModelViewInverse * vec4(0, 0, 0, 1);
+    const vec4 target = Camera.ProjectionInverse * vec4(0, 0, 1, 1);
+    const vec4 direction = Camera.ModelViewInverse * vec4(normalize(target.xyz), 0);
+
+    Ray.RemainingDepth = laneClass;
+    Ray.ObservedDepth = 0u;
+    Ray.Error = 0u;
+    traceRayEXT(Scene, gl_RayFlagsOpaqueEXT, 0xff,
+                0, 0, 0, origin.xyz, 0.001, direction.xyz, 10000.0, 0);
+
+    const bool valid = all(equal(
+        uvec3(Ray.Error, Ray.RemainingDepth, Ray.ObservedDepth),
+        uvec3(0u, 0u, expectedDepth)));
+    const vec3 success = vec3(float(expectedDepth) * 0.25,
+                              float(4u - expectedDepth) * 0.25,
+                              0.25);
+    const vec4 color = valid ? vec4(success, 0.0) : vec4(1.0, 0.0, 1.0, 0.0);
+    imageStore(AccumulationImage, ivec2(gl_LaunchIDEXT.xy), color);
+    imageStore(OutputImage, ivec2(gl_LaunchIDEXT.xy), color);
+}
