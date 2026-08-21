@@ -1,0 +1,149 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_tracing : require
+
+#include "RayPayload.glsl"
+#include "UniformBufferObject.glsl"
+
+layout(binding = 0, set = 0) uniform accelerationStructureEXT Scene;
+layout(binding = 1, rgba32f) uniform image2D AccumulationImage;
+layout(binding = 2, rgba32f) uniform image2D OutputImage;
+layout(binding = 3) readonly uniform UniformBufferObjectStruct { UniformBufferObject Camera; };
+
+layout(location = 0) rayPayloadEXT RayPayload Ray;
+
+uint mixPressureValue(uint state, uint value)
+{
+    return (state ^ value) * 16777619u + 0x9e3779b9u;
+}
+
+void main()
+{
+    const vec2 pixel = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
+    const vec2 uv = (pixel / gl_LaunchSizeEXT.xy) * 2.0 - 1.0;
+    const vec4 origin = Camera.ModelViewInverse * vec4(0, 0, 0, 1);
+    const vec4 target = Camera.ProjectionInverse * vec4(uv.x, uv.y, 1, 1);
+    const vec4 direction = Camera.ModelViewInverse * vec4(normalize(target.xyz), 0);
+
+    // These are explicit scalar SSA values rather than an array so the PTX
+    // fixture measures cross-suspension register liveness, not local-array
+    // lowering. UBO loads are deliberately outside the rematerializable set.
+    const uint v00 = floatBitsToUint(Camera.ModelView[0][0]);
+    const uint v01 = floatBitsToUint(Camera.ModelView[0][1]);
+    const uint v02 = floatBitsToUint(Camera.ModelView[0][2]);
+    const uint v03 = floatBitsToUint(Camera.ModelView[0][3]);
+    const uint v04 = floatBitsToUint(Camera.ModelView[1][0]);
+    const uint v05 = floatBitsToUint(Camera.ModelView[1][1]);
+    const uint v06 = floatBitsToUint(Camera.ModelView[1][2]);
+    const uint v07 = floatBitsToUint(Camera.ModelView[1][3]);
+    const uint v08 = floatBitsToUint(Camera.ModelView[2][0]);
+    const uint v09 = floatBitsToUint(Camera.ModelView[2][1]);
+    const uint v10 = floatBitsToUint(Camera.ModelView[2][2]);
+    const uint v11 = floatBitsToUint(Camera.ModelView[2][3]);
+    const uint v12 = floatBitsToUint(Camera.ModelView[3][0]);
+    const uint v13 = floatBitsToUint(Camera.ModelView[3][1]);
+    const uint v14 = floatBitsToUint(Camera.ModelView[3][2]);
+    const uint v15 = floatBitsToUint(Camera.ModelView[3][3]);
+    const uint v16 = floatBitsToUint(Camera.Projection[0][0]);
+    const uint v17 = floatBitsToUint(Camera.Projection[0][1]);
+    const uint v18 = floatBitsToUint(Camera.Projection[0][2]);
+    const uint v19 = floatBitsToUint(Camera.Projection[0][3]);
+    const uint v20 = floatBitsToUint(Camera.Projection[1][0]);
+    const uint v21 = floatBitsToUint(Camera.Projection[1][1]);
+    const uint v22 = floatBitsToUint(Camera.Projection[1][2]);
+    const uint v23 = floatBitsToUint(Camera.Projection[1][3]);
+    const uint v24 = floatBitsToUint(Camera.Projection[2][0]);
+    const uint v25 = floatBitsToUint(Camera.Projection[2][1]);
+    const uint v26 = floatBitsToUint(Camera.Projection[2][2]);
+    const uint v27 = floatBitsToUint(Camera.Projection[2][3]);
+    const uint v28 = floatBitsToUint(Camera.Projection[3][0]);
+    const uint v29 = floatBitsToUint(Camera.Projection[3][1]);
+    const uint v30 = floatBitsToUint(Camera.Projection[3][2]);
+    const uint v31 = floatBitsToUint(Camera.Projection[3][3]);
+
+    uint expected = floatBitsToUint(0.125);
+    expected = mixPressureValue(expected, v00);
+    expected = mixPressureValue(expected, v01);
+    expected = mixPressureValue(expected, v02);
+    expected = mixPressureValue(expected, v03);
+    expected = mixPressureValue(expected, v04);
+    expected = mixPressureValue(expected, v05);
+    expected = mixPressureValue(expected, v06);
+    expected = mixPressureValue(expected, v07);
+    expected = mixPressureValue(expected, v08);
+    expected = mixPressureValue(expected, v09);
+    expected = mixPressureValue(expected, v10);
+    expected = mixPressureValue(expected, v11);
+    expected = mixPressureValue(expected, v12);
+    expected = mixPressureValue(expected, v13);
+    expected = mixPressureValue(expected, v14);
+    expected = mixPressureValue(expected, v15);
+    expected = mixPressureValue(expected, v16);
+    expected = mixPressureValue(expected, v17);
+    expected = mixPressureValue(expected, v18);
+    expected = mixPressureValue(expected, v19);
+    expected = mixPressureValue(expected, v20);
+    expected = mixPressureValue(expected, v21);
+    expected = mixPressureValue(expected, v22);
+    expected = mixPressureValue(expected, v23);
+    expected = mixPressureValue(expected, v24);
+    expected = mixPressureValue(expected, v25);
+    expected = mixPressureValue(expected, v26);
+    expected = mixPressureValue(expected, v27);
+    expected = mixPressureValue(expected, v28);
+    expected = mixPressureValue(expected, v29);
+    expected = mixPressureValue(expected, v30);
+    expected = mixPressureValue(expected, v31);
+
+    Ray.ColorAndDistance = vec4(0);
+    Ray.ScatterDirection = vec4(0);
+    Ray.SurfaceNormal = vec3(0);
+    Ray.RandomSeed = expected;
+    traceRayEXT(Scene, gl_RayFlagsOpaqueEXT, 0xff,
+                0, 0, 0, origin.xyz, 0.001, direction.xyz, 10000.0, 0);
+
+    // The hash seed is returned by closest-hit. Consequently the compiler
+    // cannot legally hoist this checksum across TraceRay, and every vXX must
+    // survive the suspension or be restored before it is consumed.
+    uint actual = floatBitsToUint(Ray.ColorAndDistance.x);
+    actual = mixPressureValue(actual, v00);
+    actual = mixPressureValue(actual, v01);
+    actual = mixPressureValue(actual, v02);
+    actual = mixPressureValue(actual, v03);
+    actual = mixPressureValue(actual, v04);
+    actual = mixPressureValue(actual, v05);
+    actual = mixPressureValue(actual, v06);
+    actual = mixPressureValue(actual, v07);
+    actual = mixPressureValue(actual, v08);
+    actual = mixPressureValue(actual, v09);
+    actual = mixPressureValue(actual, v10);
+    actual = mixPressureValue(actual, v11);
+    actual = mixPressureValue(actual, v12);
+    actual = mixPressureValue(actual, v13);
+    actual = mixPressureValue(actual, v14);
+    actual = mixPressureValue(actual, v15);
+    actual = mixPressureValue(actual, v16);
+    actual = mixPressureValue(actual, v17);
+    actual = mixPressureValue(actual, v18);
+    actual = mixPressureValue(actual, v19);
+    actual = mixPressureValue(actual, v20);
+    actual = mixPressureValue(actual, v21);
+    actual = mixPressureValue(actual, v22);
+    actual = mixPressureValue(actual, v23);
+    actual = mixPressureValue(actual, v24);
+    actual = mixPressureValue(actual, v25);
+    actual = mixPressureValue(actual, v26);
+    actual = mixPressureValue(actual, v27);
+    actual = mixPressureValue(actual, v28);
+    actual = mixPressureValue(actual, v29);
+    actual = mixPressureValue(actual, v30);
+    actual = mixPressureValue(actual, v31);
+
+    const bool passed = actual == Ray.RandomSeed &&
+        Ray.ColorAndDistance.y == 0.875 &&
+        Ray.ColorAndDistance.z == 0.25;
+    const vec3 result = passed ? vec3(0.125, 0.875, 0.25)
+                               : vec3(1.0, 0.0, 1.0);
+    imageStore(AccumulationImage, ivec2(gl_LaunchIDEXT.xy), vec4(result, 0));
+    imageStore(OutputImage, ivec2(gl_LaunchIDEXT.xy), vec4(result, 0));
+}

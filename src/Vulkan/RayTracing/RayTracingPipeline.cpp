@@ -358,6 +358,11 @@ RayTracingPipeline::RayTracingPipeline(
 			closestHitShader = new ShaderModule(device, "../assets/shaders/TraceSequential.rchit.spv");
 			missShaderPath = "../assets/shaders/TraceSequential.rmiss.spv";
 			break;
+		case 23:
+			printf("RTV: Using continuation register-pressure validation.\n");
+			rayGenShader = new ShaderModule(device, "../assets/shaders/TracePressure.rgen.spv");
+			closestHitShader = new ShaderModule(device, "../assets/shaders/TracePressure.rchit.spv");
+			break;
 		default:
 			printf("Unrecognized shader type: %d\n", shaderType);
 			break;
