@@ -1,0 +1,160 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_tracing : require
+
+#include "RayPayload.glsl"
+#include "UniformBufferObject.glsl"
+
+layout(binding = 0, set = 0) uniform accelerationStructureEXT Scene;
+layout(binding = 1, rgba32f) uniform image2D AccumulationImage;
+layout(binding = 2, rgba32f) uniform image2D OutputImage;
+layout(binding = 3) readonly uniform UniformBufferObjectStruct { UniformBufferObject Camera; };
+
+layout(location = 0) rayPayloadEXT RayPayload Ray;
+
+uint mixStagedValue(uint state, uint value)
+{
+    return (state ^ value) * 16777619u + 0x9e3779b9u;
+}
+
+void main()
+{
+    // Use the already validated scene-17 center ray for both lanes. LaunchID
+    // remains relevant only to the branch oracle and final stores.
+    const vec4 origin4 = Camera.ModelViewInverse * vec4(0, 0, 0, 1);
+    const vec4 target = Camera.ProjectionInverse * vec4(0, 0, 1, 1);
+    const vec4 direction4 = Camera.ModelViewInverse *
+        vec4(normalize(target.xyz), 0);
+    const vec3 origin = origin4.xyz;
+    const vec3 direction = direction4.xyz;
+
+    // Explicit scalars keep the post-TraceRay arms as register consumers
+    // instead of lowering an indexed array to local memory.
+    const uint v00 = floatBitsToUint(Camera.ModelView[0][0]);
+    const uint v01 = floatBitsToUint(Camera.ModelView[0][1]);
+    const uint v02 = floatBitsToUint(Camera.ModelView[0][2]);
+    const uint v03 = floatBitsToUint(Camera.ModelView[0][3]);
+    const uint v04 = floatBitsToUint(Camera.ModelView[1][0]);
+    const uint v05 = floatBitsToUint(Camera.ModelView[1][1]);
+    const uint v06 = floatBitsToUint(Camera.ModelView[1][2]);
+    const uint v07 = floatBitsToUint(Camera.ModelView[1][3]);
+    const uint v08 = floatBitsToUint(Camera.ModelView[2][0]);
+    const uint v09 = floatBitsToUint(Camera.ModelView[2][1]);
+    const uint v10 = floatBitsToUint(Camera.ModelView[2][2]);
+    const uint v11 = floatBitsToUint(Camera.ModelView[2][3]);
+    const uint v12 = floatBitsToUint(Camera.ModelView[3][0]);
+    const uint v13 = floatBitsToUint(Camera.ModelView[3][1]);
+    const uint v14 = floatBitsToUint(Camera.ModelView[3][2]);
+    const uint v15 = floatBitsToUint(Camera.ModelView[3][3]);
+    const uint v16 = floatBitsToUint(Camera.Projection[0][0]);
+    const uint v17 = floatBitsToUint(Camera.Projection[0][1]);
+    const uint v18 = floatBitsToUint(Camera.Projection[0][2]);
+    const uint v19 = floatBitsToUint(Camera.Projection[0][3]);
+    const uint v20 = floatBitsToUint(Camera.Projection[1][0]);
+    const uint v21 = floatBitsToUint(Camera.Projection[1][1]);
+    const uint v22 = floatBitsToUint(Camera.Projection[1][2]);
+    const uint v23 = floatBitsToUint(Camera.Projection[1][3]);
+    const uint v24 = floatBitsToUint(Camera.Projection[2][0]);
+    const uint v25 = floatBitsToUint(Camera.Projection[2][1]);
+    const uint v26 = floatBitsToUint(Camera.Projection[2][2]);
+    const uint v27 = floatBitsToUint(Camera.Projection[2][3]);
+    const uint v28 = floatBitsToUint(Camera.Projection[3][0]);
+    const uint v29 = floatBitsToUint(Camera.Projection[3][1]);
+    const uint v30 = floatBitsToUint(Camera.Projection[3][2]);
+    const uint v31 = floatBitsToUint(Camera.Projection[3][3]);
+
+    const bool highArm = (gl_LaunchIDEXT.x & 1u) != 0u;
+    uint expected = floatBitsToUint(0.125);
+    if (highArm) {
+        expected = mixStagedValue(expected, v16);
+        expected = mixStagedValue(expected, v17);
+        expected = mixStagedValue(expected, v18);
+        expected = mixStagedValue(expected, v19);
+        expected = mixStagedValue(expected, v20);
+        expected = mixStagedValue(expected, v21);
+        expected = mixStagedValue(expected, v22);
+        expected = mixStagedValue(expected, v23);
+        expected = mixStagedValue(expected, v24);
+        expected = mixStagedValue(expected, v25);
+        expected = mixStagedValue(expected, v26);
+        expected = mixStagedValue(expected, v27);
+        expected = mixStagedValue(expected, v28);
+        expected = mixStagedValue(expected, v29);
+        expected = mixStagedValue(expected, v30);
+        expected = mixStagedValue(expected, v31);
+    } else {
+        expected = mixStagedValue(expected, v00);
+        expected = mixStagedValue(expected, v01);
+        expected = mixStagedValue(expected, v02);
+        expected = mixStagedValue(expected, v03);
+        expected = mixStagedValue(expected, v04);
+        expected = mixStagedValue(expected, v05);
+        expected = mixStagedValue(expected, v06);
+        expected = mixStagedValue(expected, v07);
+        expected = mixStagedValue(expected, v08);
+        expected = mixStagedValue(expected, v09);
+        expected = mixStagedValue(expected, v10);
+        expected = mixStagedValue(expected, v11);
+        expected = mixStagedValue(expected, v12);
+        expected = mixStagedValue(expected, v13);
+        expected = mixStagedValue(expected, v14);
+        expected = mixStagedValue(expected, v15);
+    }
+
+    Ray.ColorAndDistance = vec4(0);
+    Ray.ScatterDirection = vec4(0);
+    Ray.SurfaceNormal = vec3(0);
+    // The hit shader leaves RandomSeed unchanged. Raygen therefore branches
+    // on a value returned through the payload rather than on a pre-trace PTX
+    // predicate.
+    Ray.RandomSeed = highArm ? 1u : 0u;
+    traceRayEXT(Scene, gl_RayFlagsOpaqueEXT, 0xff,
+                0, 0, 0, origin, 0.001, direction, 10000.0, 0);
+
+    uint actual = floatBitsToUint(Ray.ColorAndDistance.x);
+    if (Ray.RandomSeed != 0u) {
+        actual = mixStagedValue(actual, v16);
+        actual = mixStagedValue(actual, v17);
+        actual = mixStagedValue(actual, v18);
+        actual = mixStagedValue(actual, v19);
+        actual = mixStagedValue(actual, v20);
+        actual = mixStagedValue(actual, v21);
+        actual = mixStagedValue(actual, v22);
+        actual = mixStagedValue(actual, v23);
+        actual = mixStagedValue(actual, v24);
+        actual = mixStagedValue(actual, v25);
+        actual = mixStagedValue(actual, v26);
+        actual = mixStagedValue(actual, v27);
+        actual = mixStagedValue(actual, v28);
+        actual = mixStagedValue(actual, v29);
+        actual = mixStagedValue(actual, v30);
+        actual = mixStagedValue(actual, v31);
+    } else {
+        actual = mixStagedValue(actual, v00);
+        actual = mixStagedValue(actual, v01);
+        actual = mixStagedValue(actual, v02);
+        actual = mixStagedValue(actual, v03);
+        actual = mixStagedValue(actual, v04);
+        actual = mixStagedValue(actual, v05);
+        actual = mixStagedValue(actual, v06);
+        actual = mixStagedValue(actual, v07);
+        actual = mixStagedValue(actual, v08);
+        actual = mixStagedValue(actual, v09);
+        actual = mixStagedValue(actual, v10);
+        actual = mixStagedValue(actual, v11);
+        actual = mixStagedValue(actual, v12);
+        actual = mixStagedValue(actual, v13);
+        actual = mixStagedValue(actual, v14);
+        actual = mixStagedValue(actual, v15);
+    }
+
+    const bool passed = actual == expected &&
+        Ray.ColorAndDistance.y == 0.875 &&
+        Ray.ColorAndDistance.z == 0.25;
+    const vec3 lowResult = vec3(0.125, 0.875, 0.25);
+    const vec3 highResult = vec3(0.25, 0.125, 0.875);
+    const vec3 result = passed ? (highArm ? highResult : lowResult)
+                               : vec3(1.0, 0.0, 1.0);
+    imageStore(AccumulationImage, ivec2(gl_LaunchIDEXT.xy), vec4(result, 0));
+    imageStore(OutputImage, ivec2(gl_LaunchIDEXT.xy), vec4(result, 0));
+}
