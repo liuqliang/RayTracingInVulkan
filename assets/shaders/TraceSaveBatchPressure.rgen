@@ -1,0 +1,179 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_tracing : require
+
+#include "RayPayload.glsl"
+#include "UniformBufferObject.glsl"
+
+layout(binding = 0, set = 0) uniform accelerationStructureEXT Scene;
+layout(binding = 1, rgba32f) uniform image2D AccumulationImage;
+layout(binding = 2, rgba32f) uniform image2D OutputImage;
+layout(binding = 3) readonly uniform UniformBufferObjectStruct { UniformBufferObject Camera; };
+
+layout(location = 0) rayPayloadEXT RayPayload Ray;
+
+uint mixSaveBatchValue(uint state, uint value)
+{
+    return (state ^ value) * 16777619u + 0x9e3779b9u;
+}
+
+void main()
+{
+    // The scene-17 center ray is shared with the earlier pressure fixtures.
+    const vec4 origin4 = Camera.ModelViewInverse * vec4(0, 0, 0, 1);
+    const vec4 target = Camera.ProjectionInverse * vec4(0, 0, 1, 1);
+    const vec4 direction4 = Camera.ModelViewInverse *
+        vec4(normalize(target.xyz), 0);
+
+    // Four complete matrices provide 64 distinct UBO-backed scalar SSA
+    // values. They have no checksum use before TraceRay, so the candidate may
+    // conservatively save each group after its definitions without crossing
+    // control flow. Explicit scalars avoid local-array lowering.
+    const uint v00 = floatBitsToUint(Camera.ModelView[0][0]);
+    const uint v01 = floatBitsToUint(Camera.ModelView[0][1]);
+    const uint v02 = floatBitsToUint(Camera.ModelView[0][2]);
+    const uint v03 = floatBitsToUint(Camera.ModelView[0][3]);
+    const uint v04 = floatBitsToUint(Camera.ModelView[1][0]);
+    const uint v05 = floatBitsToUint(Camera.ModelView[1][1]);
+    const uint v06 = floatBitsToUint(Camera.ModelView[1][2]);
+    const uint v07 = floatBitsToUint(Camera.ModelView[1][3]);
+    const uint v08 = floatBitsToUint(Camera.ModelView[2][0]);
+    const uint v09 = floatBitsToUint(Camera.ModelView[2][1]);
+    const uint v10 = floatBitsToUint(Camera.ModelView[2][2]);
+    const uint v11 = floatBitsToUint(Camera.ModelView[2][3]);
+    const uint v12 = floatBitsToUint(Camera.ModelView[3][0]);
+    const uint v13 = floatBitsToUint(Camera.ModelView[3][1]);
+    const uint v14 = floatBitsToUint(Camera.ModelView[3][2]);
+    const uint v15 = floatBitsToUint(Camera.ModelView[3][3]);
+    const uint v16 = floatBitsToUint(Camera.Projection[0][0]);
+    const uint v17 = floatBitsToUint(Camera.Projection[0][1]);
+    const uint v18 = floatBitsToUint(Camera.Projection[0][2]);
+    const uint v19 = floatBitsToUint(Camera.Projection[0][3]);
+    const uint v20 = floatBitsToUint(Camera.Projection[1][0]);
+    const uint v21 = floatBitsToUint(Camera.Projection[1][1]);
+    const uint v22 = floatBitsToUint(Camera.Projection[1][2]);
+    const uint v23 = floatBitsToUint(Camera.Projection[1][3]);
+    const uint v24 = floatBitsToUint(Camera.Projection[2][0]);
+    const uint v25 = floatBitsToUint(Camera.Projection[2][1]);
+    const uint v26 = floatBitsToUint(Camera.Projection[2][2]);
+    const uint v27 = floatBitsToUint(Camera.Projection[2][3]);
+    const uint v28 = floatBitsToUint(Camera.Projection[3][0]);
+    const uint v29 = floatBitsToUint(Camera.Projection[3][1]);
+    const uint v30 = floatBitsToUint(Camera.Projection[3][2]);
+    const uint v31 = floatBitsToUint(Camera.Projection[3][3]);
+    const uint v32 = floatBitsToUint(Camera.ModelViewInverse[0][0]);
+    const uint v33 = floatBitsToUint(Camera.ModelViewInverse[0][1]);
+    const uint v34 = floatBitsToUint(Camera.ModelViewInverse[0][2]);
+    const uint v35 = floatBitsToUint(Camera.ModelViewInverse[0][3]);
+    const uint v36 = floatBitsToUint(Camera.ModelViewInverse[1][0]);
+    const uint v37 = floatBitsToUint(Camera.ModelViewInverse[1][1]);
+    const uint v38 = floatBitsToUint(Camera.ModelViewInverse[1][2]);
+    const uint v39 = floatBitsToUint(Camera.ModelViewInverse[1][3]);
+    const uint v40 = floatBitsToUint(Camera.ModelViewInverse[2][0]);
+    const uint v41 = floatBitsToUint(Camera.ModelViewInverse[2][1]);
+    const uint v42 = floatBitsToUint(Camera.ModelViewInverse[2][2]);
+    const uint v43 = floatBitsToUint(Camera.ModelViewInverse[2][3]);
+    const uint v44 = floatBitsToUint(Camera.ModelViewInverse[3][0]);
+    const uint v45 = floatBitsToUint(Camera.ModelViewInverse[3][1]);
+    const uint v46 = floatBitsToUint(Camera.ModelViewInverse[3][2]);
+    const uint v47 = floatBitsToUint(Camera.ModelViewInverse[3][3]);
+    const uint v48 = floatBitsToUint(Camera.ProjectionInverse[0][0]);
+    const uint v49 = floatBitsToUint(Camera.ProjectionInverse[0][1]);
+    const uint v50 = floatBitsToUint(Camera.ProjectionInverse[0][2]);
+    const uint v51 = floatBitsToUint(Camera.ProjectionInverse[0][3]);
+    const uint v52 = floatBitsToUint(Camera.ProjectionInverse[1][0]);
+    const uint v53 = floatBitsToUint(Camera.ProjectionInverse[1][1]);
+    const uint v54 = floatBitsToUint(Camera.ProjectionInverse[1][2]);
+    const uint v55 = floatBitsToUint(Camera.ProjectionInverse[1][3]);
+    const uint v56 = floatBitsToUint(Camera.ProjectionInverse[2][0]);
+    const uint v57 = floatBitsToUint(Camera.ProjectionInverse[2][1]);
+    const uint v58 = floatBitsToUint(Camera.ProjectionInverse[2][2]);
+    const uint v59 = floatBitsToUint(Camera.ProjectionInverse[2][3]);
+    const uint v60 = floatBitsToUint(Camera.ProjectionInverse[3][0]);
+    const uint v61 = floatBitsToUint(Camera.ProjectionInverse[3][1]);
+    const uint v62 = floatBitsToUint(Camera.ProjectionInverse[3][2]);
+    const uint v63 = floatBitsToUint(Camera.ProjectionInverse[3][3]);
+
+    Ray.ColorAndDistance = vec4(0);
+    Ray.ScatterDirection = vec4(0);
+    Ray.SurfaceNormal = vec3(0);
+    Ray.RandomSeed = 0;
+    traceRayEXT(Scene, gl_RayFlagsOpaqueEXT, 0xff,
+                0, 0, 0, origin4.xyz, 0.001, direction4.xyz, 10000.0, 0);
+
+    uint checksum = floatBitsToUint(Ray.ColorAndDistance.x);
+    checksum = mixSaveBatchValue(checksum, v00);
+    checksum = mixSaveBatchValue(checksum, v01);
+    checksum = mixSaveBatchValue(checksum, v02);
+    checksum = mixSaveBatchValue(checksum, v03);
+    checksum = mixSaveBatchValue(checksum, v04);
+    checksum = mixSaveBatchValue(checksum, v05);
+    checksum = mixSaveBatchValue(checksum, v06);
+    checksum = mixSaveBatchValue(checksum, v07);
+    checksum = mixSaveBatchValue(checksum, v08);
+    checksum = mixSaveBatchValue(checksum, v09);
+    checksum = mixSaveBatchValue(checksum, v10);
+    checksum = mixSaveBatchValue(checksum, v11);
+    checksum = mixSaveBatchValue(checksum, v12);
+    checksum = mixSaveBatchValue(checksum, v13);
+    checksum = mixSaveBatchValue(checksum, v14);
+    checksum = mixSaveBatchValue(checksum, v15);
+    checksum = mixSaveBatchValue(checksum, v16);
+    checksum = mixSaveBatchValue(checksum, v17);
+    checksum = mixSaveBatchValue(checksum, v18);
+    checksum = mixSaveBatchValue(checksum, v19);
+    checksum = mixSaveBatchValue(checksum, v20);
+    checksum = mixSaveBatchValue(checksum, v21);
+    checksum = mixSaveBatchValue(checksum, v22);
+    checksum = mixSaveBatchValue(checksum, v23);
+    checksum = mixSaveBatchValue(checksum, v24);
+    checksum = mixSaveBatchValue(checksum, v25);
+    checksum = mixSaveBatchValue(checksum, v26);
+    checksum = mixSaveBatchValue(checksum, v27);
+    checksum = mixSaveBatchValue(checksum, v28);
+    checksum = mixSaveBatchValue(checksum, v29);
+    checksum = mixSaveBatchValue(checksum, v30);
+    checksum = mixSaveBatchValue(checksum, v31);
+    checksum = mixSaveBatchValue(checksum, v32);
+    checksum = mixSaveBatchValue(checksum, v33);
+    checksum = mixSaveBatchValue(checksum, v34);
+    checksum = mixSaveBatchValue(checksum, v35);
+    checksum = mixSaveBatchValue(checksum, v36);
+    checksum = mixSaveBatchValue(checksum, v37);
+    checksum = mixSaveBatchValue(checksum, v38);
+    checksum = mixSaveBatchValue(checksum, v39);
+    checksum = mixSaveBatchValue(checksum, v40);
+    checksum = mixSaveBatchValue(checksum, v41);
+    checksum = mixSaveBatchValue(checksum, v42);
+    checksum = mixSaveBatchValue(checksum, v43);
+    checksum = mixSaveBatchValue(checksum, v44);
+    checksum = mixSaveBatchValue(checksum, v45);
+    checksum = mixSaveBatchValue(checksum, v46);
+    checksum = mixSaveBatchValue(checksum, v47);
+    checksum = mixSaveBatchValue(checksum, v48);
+    checksum = mixSaveBatchValue(checksum, v49);
+    checksum = mixSaveBatchValue(checksum, v50);
+    checksum = mixSaveBatchValue(checksum, v51);
+    checksum = mixSaveBatchValue(checksum, v52);
+    checksum = mixSaveBatchValue(checksum, v53);
+    checksum = mixSaveBatchValue(checksum, v54);
+    checksum = mixSaveBatchValue(checksum, v55);
+    checksum = mixSaveBatchValue(checksum, v56);
+    checksum = mixSaveBatchValue(checksum, v57);
+    checksum = mixSaveBatchValue(checksum, v58);
+    checksum = mixSaveBatchValue(checksum, v59);
+    checksum = mixSaveBatchValue(checksum, v60);
+    checksum = mixSaveBatchValue(checksum, v61);
+    checksum = mixSaveBatchValue(checksum, v62);
+    checksum = mixSaveBatchValue(checksum, v63);
+
+    const bool payloadValid = Ray.ColorAndDistance.y == 0.875 &&
+        Ray.ColorAndDistance.z == 0.25;
+    const vec3 encoded = vec3(
+        float(checksum & 0xffu),
+        float((checksum >> 8u) & 0xffu),
+        float((checksum >> 16u) & 0xffu)) / 255.0;
+    const vec3 result = payloadValid ? encoded : vec3(1.0, 0.0, 1.0);
+    imageStore(AccumulationImage, ivec2(gl_LaunchIDEXT.xy), vec4(result, 0));
+    imageStore(OutputImage, ivec2(gl_LaunchIDEXT.xy), vec4(result, 0));
+}
