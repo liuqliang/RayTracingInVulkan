@@ -67,6 +67,23 @@ find_package(PNG REQUIRED)
 find_package(Vulkan REQUIRED)
 find_path(STB_INCLUDE_DIRS "stb.h")
 
+set(VULKAN_SIM_MESA_INCLUDE_DIR "" CACHE PATH
+    "Mesa include directory containing vulkan/vulkan_sim_rtcore.h")
+if (NOT VULKAN_SIM_MESA_INCLUDE_DIR)
+    if (DEFINED ENV{MESA_ROOT} AND
+        EXISTS "$ENV{MESA_ROOT}/include/vulkan/vulkan_sim_rtcore.h")
+        set(VULKAN_SIM_MESA_INCLUDE_DIR "$ENV{MESA_ROOT}/include")
+    elseif (EXISTS
+            "${CMAKE_CURRENT_SOURCE_DIR}/../mesa-vulkan-sim/include/vulkan/vulkan_sim_rtcore.h")
+        set(VULKAN_SIM_MESA_INCLUDE_DIR
+            "${CMAKE_CURRENT_SOURCE_DIR}/../mesa-vulkan-sim/include")
+    else ()
+        message(FATAL_ERROR
+            "vulkan/vulkan_sim_rtcore.h is required; set "
+            "VULKAN_SIM_MESA_INCLUDE_DIR to the matching Mesa include directory")
+    endif ()
+endif ()
+
 add_definitions(-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS)
 
 IF (NOT Vulkan_FOUND)
@@ -88,4 +105,3 @@ set(MAIN_PROJECT "RayTracer")
 add_subdirectory(assets)
 add_subdirectory(src)
 set_property (DIRECTORY PROPERTY VS_STARTUP_PROJECT ${MAIN_PROJECT})
-

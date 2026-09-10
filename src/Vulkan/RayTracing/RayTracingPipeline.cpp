@@ -13,6 +13,9 @@
 #include "Vulkan/PipelineLayout.hpp"
 #include "Vulkan/ShaderModule.hpp"
 #include "Vulkan/SwapChain.hpp"
+#include <vulkan/vulkan_sim_rtcore.h>
+#include <cstdlib>
+#include <cstring>
 #include <cstdio>
 
 namespace Vulkan::RayTracing {
@@ -533,6 +536,25 @@ RayTracingPipeline::RayTracingPipeline(
 	VkRayTracingPipelineCreateInfoKHR pipelineInfo = {};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
 	pipelineInfo.pNext = nullptr;
+	VkVulkanSimRtcoreExecutionModeCreateInfo simulatorMode = {};
+	if (const char* requestedMode = std::getenv(
+			"VULKAN_SIM_RTCORE_EXECUTION_MODE"))
+	{
+		simulatorMode.sType =
+			VK_STRUCTURE_TYPE_VULKAN_SIM_RTCORE_EXECUTION_MODE_CREATE_INFO;
+		simulatorMode.pNext = nullptr;
+		if (std::strcmp(requestedMode, "resident-megakernel") == 0)
+			simulatorMode.executionMode =
+				VK_VULKAN_SIM_RTCORE_EXECUTION_MODE_RESIDENT_MEGAKERNEL;
+		else if (std::strcmp(requestedMode, "continuation-megakernel") == 0)
+			simulatorMode.executionMode =
+				VK_VULKAN_SIM_RTCORE_EXECUTION_MODE_CONTINUATION_MEGAKERNEL;
+		else
+			throw std::runtime_error(
+				"Unsupported VULKAN_SIM_RTCORE_EXECUTION_MODE: " +
+				std::string(requestedMode));
+		pipelineInfo.pNext = &simulatorMode;
+	}
 	pipelineInfo.flags = 0;
 	pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
 	pipelineInfo.pStages = shaderStages.data();
